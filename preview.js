@@ -15,11 +15,11 @@ var express = require('express')
     rejectconnectedhttps: 100,
     timeout: 30000,
 	maxthemes: 10,
-	maxnews: 21,
+	maxnews: 20,
 	maxnewsintheme: 4,
 	keywordcut: 0.1,
-	themecut: 20,
-	newscut: 10,
+	themecut: 10,
+	newscut: 5,
 	jade: {
 		main: 'jade/main.jade'
 		}
@@ -605,6 +605,7 @@ function reconvert (echo) {
     echo = iconv.convert(echo).toString();
 	
 	echo = echo.replace(/\x13/g,"&mdash;");
+	echo = echo.replace(/\x14/g,"&mdash;");
 	return echo;
 }
 
