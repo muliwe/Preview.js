@@ -6,4 +6,51 @@ if theme.url
 else
  .b_title(class = tclass)
   p.title_h
-   a(href='#{theme.response.url}') !{theme.title}
+   a(href='#{theme.response.url}') !{theme.response.title}
+
+if theme.response.news.length == 4
+ .block
+  .b_box-big
+   .b-box-news
+    a(href='#{theme.response.newsurl[0]}', class='b_box_frame2', title='#{theme.response.title}')
+     img(src=obj.news[theme.response.news[0]].image, alt='#{obj.news[theme.response.news[0]].title}', title='#{obj.news[theme.response.news[0]].title}')
+    .b-box-indent
+     a(href='#{theme.response.newsurl[0]}', class='b_box_head', title='#{theme.response.title}') !{theme.response.title}
+     p !{obj.news[theme.response.news[0]].anons}
+     .b_drop_box(style='display:none;')
+      | !{theme.response.body}
+      .row_line
+       .b-button-repost.b-button-repost__dropdown
+        noindex
+         a(rel='nofollow', target='_blank', href='http://vkontakte.ru/share.php?url=http%3A//www.ruscur.ru'+theme.response.newsurl[0]+'&image=http%3A%2F%2Fwww.ruscur.ru'+obj.news[theme.response.news[0]].image)
+          span.icon.icon-vk
+         a(rel='nofollow', target='_blank', href='http://twitter.com/share?text='+theme.response.escapedtitle+'&via=ruscur&related=ruscur&url=http%3A//ruscur.ru'+theme.response.newsurl[0])
+          span.icon.icon-twitter
+         a(rel='nofollow', target='_blank', href='http://www.odnoklassniki.ru/dk?st.cmd=addShare&st._surl=http%3A//www.ruscur.ru'+theme.response.newsurl[0]+'&imageurl=http%3A%2F%2Fwww.ruscur.ru'+obj.news[theme.response.news[0]].image)
+          span.icon.icon_ok_repost
+         a(rel='nofollow', target='_blank', href='http://www.facebook.com/sharer.php?u=http://www.ruscur.ru'+theme.response.newsurl[0])
+          span.icon.icon-facebook
+     .b_box_row
+      a(href='#{theme.response.url}', class='btn_more') &#x0427;&#x0438;&#x0442;&#x0430;&#x0442;&#x044c; &#x0435;&#x0449;&#x0451;
+      a(href='#', class='arrow_down_green')
+       span.icon.icon-down
+      a(href='#', class='arrow_up_green')
+       span.icon.icon-up
+
+  .b_box_small
+   .wrap
+    .b-box-news
+     a(href='#{theme.response.newsurl[1]}', class='b_box_frame2')
+      img(src=obj.news[theme.response.news[1]].image, alt='#{obj.news[theme.response.news[1]].title}', title='#{obj.news[theme.response.news[1]].title}')
+     .b-box-indent
+      a(href='#{theme.response.newsurl[1]}', class='b_box_head small') !{obj.news[theme.response.news[1]].title}
+    .b-box-news
+     a(href='#{theme.response.newsurl[2]}', class='b_box_frame2')
+      img(src=obj.news[theme.response.news[2]].image, alt='#{obj.news[theme.response.news[2]].title}', title='#{obj.news[theme.response.news[2]].title}')
+     .b-box-indent
+      a(href='#{theme.response.newsurl[2]}', class='b_box_head small') !{obj.news[theme.response.news[2]].title}
+    .b-box-news.three
+     a(href='#{theme.response.newsurl[3]}', class='b_box_frame2')
+      img(src=obj.news[theme.response.news[3]].image, alt='#{obj.news[theme.response.news[3]].title}', title='#{obj.news[theme.response.news[3]].title}')
+     .b-box-indent
+      a(href='#{theme.response.newsurl[3]}', class='b_box_head small') !{obj.news[theme.response.news[3]].title}

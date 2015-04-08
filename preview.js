@@ -288,7 +288,7 @@ function Newsgraph() {
 		    if (!theme.response.hasOwnProperty('filled') || !theme.response.filled) // use result cache || fill it below
 				{
 					theme.response.news=[];
-					theme.response.url = (theme.url != '' ? '/t/'+gettitleurl(theme.url)+'/'+geturl(result[is])+'.shtml' : '/themes/'+geturl(result[is])+'.shtml');
+					theme.response.newsurl=[];
 					
 					var topnews = obj.Keyz(theme.news).sort(function(a,b){ return (obj.news[b].weight > obj.news[a].weight?1:-1); })
 					, maxweight = obj.news[topnews[0]].weight
@@ -299,9 +299,14 @@ function Newsgraph() {
 						if (it == config['maxnewsintheme']) break;
 			
 						theme.response.news.push(topnews[it]);
+						theme.response.newsurl.push('/news/'+geturl(topnews[it])+'.shtml');
 					}
 
-					theme.response.rendered = jade.renderFile(config.jade['main'],{theme:theme});
+					theme.response.title = obj.news[theme.response.news[0]].title;
+					theme.response.body = getanonsbig(obj.news[theme.response.news[0]].body);
+					theme.response.url = (theme.url != '' ? '/t/'+gettitleurl(theme.url)+'/'+geturl(result[is])+'.shtml' : '/themes/'+geturl(result[is])+'.shtml');
+					theme.response.escapedtitle = gettitleescape(theme.response.title);
+					theme.response.rendered = jade.renderFile(config.jade['main'],{theme:theme,obj:obj});
 					theme.response.filled = true;
 				}
 			
@@ -644,4 +649,45 @@ function gettitleurl (title)
 	title = title.replace(/^_/,"");
 
 	return title;
+}
+
+function gettitleescape (title)
+{
+	title = encodeURI(reconvert(title));
+	
+	title = title.replace(/&(laquo|raquo|qout|mdash);/ig,"%22");
+	title = title.replace(/\"/g,"%22");
+	title = title.replace(/&(mdash);/ig,"-");
+	title = title.replace(/\+/g,"%2B");
+	title = title.replace(/( |%20)/g,"+");
+	title = title.replace(/\++/g,"+");
+	title = title.replace(/\+$/,"");
+	title = title.replace(/^\+/,"");
+
+	return title;
+}
+
+function getanonsbig (body) {
+
+	body = body.replace(/\s+/g," ");
+	body = body.replace(/\[\[(.*?)\]\]/g,"");
+	body = body.replace(/<p><\/p>/g,"");
+	body = body.replace(/<!--b_box-big.*?\/b_box-big-->/g,"");
+	body = body.replace(/<!--.*?-->/g,"");
+	body = body.replace(/^.*?<\/figure>/i,"");
+	body = body.replace(/<h2.*?\/h2>/g,"");
+	body = body.replace(/<noindex.*?\/noindex>/ig,"");
+	body = body.replace(/<figure.*?\/figure>/ig,"");
+	body = body.replace(/<script.*?\/script>/ig,"");
+	body = body.replace(/<div class="b-blockquote-autor">(.*?)<\/div>/g,"[[$1]]");
+	body = body.replace(/<span.*?\/span>/ig,"");
+	body = body.replace(/<div.*?\/div>/ig,"");
+	body = body.replace(/<\/div>/ig,"");
+	body = body.replace(/<\/article>.*$/ig,"");
+	body = body.replace(/<article.*?>/ig,"");
+	body = body.replace(/<p[^>]*>\s*<\/p>/ig,"");
+	body = body.replace(/\[\[(.*?)\]\]/g,"<div class=b-blockquote-autor>$1</div>");
+	if (body.match(/^(.*?<p.*?<p.*?<p.*?<p.*?)<p.*$/)) body = body.replace(/^(.*?<p.*?<p.*?<p.*?<p.*?)<p.*$/,"$1");
+
+	return body;	
 }
