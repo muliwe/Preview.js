@@ -3,16 +3,16 @@ var express = require('express')
 , mysql   = require('mysql')
 , ipfilter = require('ipfilter')
 , fs = require('fs')
-, https = require('https')
+, http = require('http')
 , moment  = require('moment')
 , Iconv  = require('iconv').Iconv
 , Buffer = require('buffer').Buffer
 , jade = require('jade')
 , config = {
-	host: 'https://editor.ruscur.ru',
+	host: 'http://editor.ruscur.ru',
 	port: 3008,
 	ips: ['127.0.0.1','213.133.122.12','46.188.3.213'],
-    rejectconnectedhttps: 100,
+    rejectconnectedhttp: 5000,
     timeout: 30000,
 	maxthemes: 10,
 	maxnews: 20,
@@ -32,14 +32,7 @@ var express = require('express')
   }
 ;
 
-app.use(ipfilter(config['ips'], {mode: 'allow'}));
-
-var httpsoptions = {
-  key: fs.readFileSync('key.pem'),
-  cert: fs.readFileSync('cert.pem'),
-  agent: new https.Agent({maxSockets:config['rejectconnectedhttps']})
-  }
-, httpsserver = https.createServer(httpsoptions,app)
+var httpserver = http.createServer(app)
 , now = new Date()
 , currdate = moment(now)//.subtract(24, 'hours') // force to reload node cache ones
 , currdate2 = moment(now)//.subtract(10, 'minutes') // force to reload news cache ones
@@ -61,24 +54,26 @@ app.get('/', function (req, res) {
   , currdate5 = moment(now2).subtract(10, 'minutes')
   , isbefore = currdate.isBefore(currdate4) // cache is older then 24 hours
   , isbefore2 = currdate2.isBefore(currdate5) // cache is older then 10 minutes
+  , ip = req.connection.remoteAddress
   ;
 
   echo = 'Last news graph status: '+newsgraph.GetStatus()+ '\nRubs cache date: '+currdate.format("D/MM HH:mm:ss")+ '\nNews cache date: '+currdate2.format("D/MM HH:mm:ss");
 
-  if (isbefore || flush) {
-	newsgraph.Update();  
-	currdate = currdate3;
-	currdate2 = currdate3;
-  } else if (isbefore2 || newsflush) {
-	newsgraph.NewsUpdate();  
-	currdate2 = currdate3;
-  }
- 
+  if (host_allowed(ip)) {
+	  if (isbefore || flush) {
+		newsgraph.Update();  
+		currdate = currdate3;
+		currdate2 = currdate3;
+	  } else if (isbefore2 || newsflush) {
+		newsgraph.NewsUpdate();  
+		currdate2 = currdate3;
+	  }
+  } 
   res.end(echo);
 
 });
 
-app.get('/themes', function (req, res) {
+app.get('/getthemes', function (req, res) {
 
   var echo = "[1,'Server is busy']"
   , noids = (req.query.not?req.query.not.split('|'):[])
@@ -87,6 +82,7 @@ app.get('/themes', function (req, res) {
   , num = (req.query.page?parseInt(req.query.page,10):1)
   , dohtml = (req.query.html?true:false)
   , themes = []
+  , rubs = {}
   , disctime = setTimeout(function(){
 
 	clearInterval(disctime2);
@@ -106,7 +102,7 @@ app.get('/themes', function (req, res) {
 
   if (!newsgraph.updating) { // on the go
 
-	var themes = newsgraph.GetThemes(id,num,noids);
+	var themes = newsgraph.GetThemes(id,num,noids,rubs);
 	if (themes.length > 1) { echo = newsgraph.GetEcho(themes,noids,dohtml); } else { echo = ( dohtml ? '<!-- the end is nigh -->' : "[4,'Themes not found']") }
 	clearTimeout(disctime);
 	res.end(reconvert(echo));
@@ -118,7 +114,7 @@ app.get('/themes', function (req, res) {
     if (!newsgraph.updating) {
     clearInterval(disctime2);
 
-	var themes = newsgraph.GetThemes(id,num,noids);
+	var themes = newsgraph.GetThemes(id,num,noids,rubs);
 	if (themes.length > 1) { echo = newsgraph.GetEcho(themes,noids,dohtml); } else { echo = ( dohtml ? '<!-- the end is nigh -->' : "[4,'Themes not found']") }
 	clearTimeout(disctime);
 	res.end(reconvert(echo));
@@ -129,8 +125,8 @@ app.get('/themes', function (req, res) {
   }
  });
 
-httpsserver.listen(config['port'], function(){
-  console.log('Started stats on '+config['host']+':'+config['port']+' - localhost only, connections restricted to '+config['rejectconnectedhttps']);
+httpserver.listen(config['port'], function(){
+  console.log('Started preview on '+config['host']+':'+config['port']+', connections restricted to '+config['rejectconnectedhttp']);
 });
 
 // end of code
@@ -205,7 +201,7 @@ function Newsgraph() {
 	return resultarr;
 	}
 	
-    this.GetThemes = function (id, num, noids) {
+    this.GetThemes = function (id, num, noids, rubs) {
 		
 	var disctime = setTimeout(function(){
 			return [2,'Server timed out'];
@@ -223,7 +219,7 @@ function Newsgraph() {
 		if (!obj.nodes.hasOwnProperty(id) || obj.nodes[id].type == 0)
 			return [3,'Wrong or invisible node '+id];
 			
-		obj.GetThemesInner(id, num, noids, result); // rub or keyword themes
+		obj.GetThemesInner(id, num, noids, rubs, result); // rub or keyword themes
 	} else if (id == 0 && noids.length == 1) // relative themes to one theme
 	{
 		if (!obj.themes.hasOwnProperty(noids[0]) || obj.themes[noids[0]].type == 0)
@@ -231,18 +227,18 @@ function Newsgraph() {
 
 		var toprubs = obj.themes[noids[0]].parents.sort(function(a,b){ return obj.nodes[b].weightpath>obj.nodes[a].weightpath?1:-1; }); // sorted with long-hand weight priority, replace .weightpath with .weight for short-hand sort
 		
-		obj.GetThemesInner(toprubs[0], num, noids, result); // most weighted parent themes
+		obj.GetThemesInner(toprubs[0], num, noids, rubs, result); // most weighted parent themes
 	} else {
 
-	obj.GetThemesInner(0, num, noids, result); // root node / FP setup list
+	obj.GetThemesInner(0, num, noids, rubs, result); // root node / FP setup list
 	}
 
-	var parsedresult = obj.ParseResult(result,num);
+	var parsedresult = obj.ParseResult(result, num, rubs);
 	
 	return parsedresult;
 	}
 
-    this.GetThemesInner = function (id, num, noids, result) {
+    this.GetThemesInner = function (id, num, noids, rubs, result) {
 	var obj = this
 	, type = (id > 0 ? obj.nodes[id].type : 0)
 	, topthemes = []
@@ -254,26 +250,37 @@ function Newsgraph() {
 
 	topthemes = obj.Filternoids((id>0?id:0), noids, result).sort(function(a,b){ return (obj.themes[b].ci > obj.themes[a].ci || (obj.themes[b].ci == obj.themes[a].ci && obj.themes[b].weight > obj.themes[a].weight)?1:-1); });
 		
-	var maxweight = (topthemes.length > 0 ? obj.themes[topthemes[0]].weight : 1); // constituency for empty set
-		
+	var maxweight = (topthemes.length > 0 ? obj.themes[topthemes[0]].weight : 1) // constituency for empty set
+	wastheme = false; 
+
+	
 	for (var is in topthemes) {
 		if (result.length > config['maxthemes']*num) break;
 		if (id > 0 && obj.themes[topthemes[is]].weight < maxweight / config['themecut']) break;
-			
+		if (wastheme) {
+			rubs[topthemes[is]] = false;
+		}
+		else {  // fill rub entering for the jade
+			wastheme = true; 
+			rubs[topthemes[is]] = {};
+			rubs[topthemes[is]].id	= (id>0?id:0);
+			rubs[topthemes[is]].url = (id > 0 ? '/t/'+gettitleurl(obj.nodes[id].title)+'/'+geturlshort(id)+'/' : '/' );
+			rubs[topthemes[is]].title = (id > 0 ? obj.nodes[id].title : '&#1043;&#1083;&#1072;&#1074;&#1085;&#1099;&#1077; &#1090;&#1077;&#1084;&#1099; &#1076;&#1085;&#1103;' ); // root node
+		}
 		result.push(topthemes[is]);
 	}
 		
 	if (result.length > config['maxthemes']*num) return;
 		
 	if ( id > 0 ) {
-		if (obj.nodes[id].parent > 0 && obj.nodes[obj.nodes[id].parent].type > 0) obj.GetThemesInner(obj.nodes[id].parent, num, noids, result);
-		if (obj.nodes[id].parent == 0) obj.GetThemesInner(0, num, noids, result);
+		if (obj.nodes[id].parent > 0 && obj.nodes[obj.nodes[id].parent].type > 0) obj.GetThemesInner(obj.nodes[id].parent, num, noids, rubs, result);
+		if (obj.nodes[id].parent == 0) obj.GetThemesInner(0, num, noids, rubs, result);
 	} // else we touched the bottom, giving up
 		
 	return;
 	}
 	
-    this.ParseResult = function (result, num) {
+    this.ParseResult = function (result, num, rubs) {
 	var obj = this
 	, realresult = []
 	, realresultnum = 0
@@ -306,7 +313,7 @@ function Newsgraph() {
 					theme.response.body = getanonsbig(obj.news[theme.response.news[0]].body);
 					theme.response.url = (theme.url != '' ? '/t/'+gettitleurl(theme.url)+'/'+geturl(result[is])+'.shtml' : '/themes/'+geturl(result[is])+'.shtml');
 					theme.response.escapedtitle = gettitleescape(theme.response.title);
-					theme.response.rendered = jade.renderFile(config.jade['main'],{theme:theme,obj:obj});
+					theme.response.rendered = jade.renderFile(config.jade['main'],{theme:theme,obj:obj,is:is,rubs:rubs});
 					theme.response.filled = true;
 				}
 			
@@ -409,7 +416,7 @@ function Newsgraph() {
 				obj.themes[tid] = new Newstheme(tid);
 				obj.themes[tid].title = rows[is].tt;
 				obj.themes[tid].anons = rows[is].ta;
-				obj.themes[tid].image = rows[is].ti;
+				obj.themes[tid].image = (rows[is].ti == '_default' ? '/photoes/_default/verybig.jpeg' : rows[is].ti);
 				obj.themes[tid].pd = moment(rows[is].tpd,"YYYYMMDDHHmmss");
 				obj.themes[tid].type = rows[is].type;
 				obj.themes[tid].ci = rows[is].ci;
@@ -420,7 +427,7 @@ function Newsgraph() {
 				obj.news[bid].title = (rows[is].body.match(/title==/)?rows[is].body.match(/title==(.*?)(?:\&\&|$)/)[1]:obj.news[bid].title);
 				obj.news[bid].anons = rows[is].ba;
 				obj.news[bid].body = rows[is].genbody;
-				obj.news[bid].image = rows[is].bi;
+				obj.news[bid].image = (rows[is].bi == '_default' ? obj.themes[tid].image : rows[is].bi);
 				obj.news[bid].pd = moment(rows[is].bpd,"YYYYMMDDHHmmss");
 				obj.news[bid].age = nowdate.diff(obj.news[bid].pd, 'hours');
 				var temptype = (rows[is].body.match(/subtype==(\d+?)/g)?parseInt(rows[is].body.match(/subtype==(\d+?)/g)[0],10):false);
@@ -528,6 +535,8 @@ function Newsgraph() {
     }
 }
 
+// constructors
+
 function Newsnode (id) {
 
     this.id = id;
@@ -593,6 +602,8 @@ function Newstitle (tid, id) {
 	this.weight = 1;
 }
 
+// processing functions
+
 function reconvert (echo) {
 	echo = echo.replace(/\xAB/g,"&laquo;");
 	echo = echo.replace(/\xBB/g,"&raquo;");
@@ -629,6 +640,7 @@ function geturlshort (url)
 {
 	url = parseInt(url,10);
 	url = (url > 0 ? url : 0);
+	url = url.toString();
 
 	if (url.match(/^(\d\d)(\d\d)(\d*)$/)) url = url.toString().replace(/^(\d\d)(\d\d)(\d*)$/,"$2/$1$2$3");
 	else if (url.match(/^(\d\d)(\d)$/)) url = url.toString().replace(/^(\d\d)(\d)$/,"$1\/$1$2");
@@ -691,4 +703,15 @@ function getanonsbig (body) {
 	if (body.match(/^(.*?<p.*?<p.*?<p.*?<p.*?)<p.*$/)) body = body.replace(/^(.*?<p.*?<p.*?<p.*?<p.*?)<p.*$/,"$1");
 
 	return body;	
+}
+
+// service functions
+
+function host_allowed(host) {
+  for (i in config['ips']) {
+    if (config['ips'][i] == host) {
+      return true;
+    }
+  }
+  return false;
 }

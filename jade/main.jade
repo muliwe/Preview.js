@@ -1,3 +1,7 @@
+if !!rubs[theme.id]
+ h2.b_head_block.b_head_block__adv 
+  a(href='#{rubs[theme.id].url}', title=(rubs[theme.id].url == '/' ? '' : rubs[theme.id].title)) !{rubs[theme.id].title}
+
 - var tclass = (theme.type == 1 ? 'nomatter_b': (theme.type == 3 ? 'breaking_b': ''))
 if theme.url
  .b_title(class = tclass)
