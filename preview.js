@@ -21,7 +21,8 @@ var express = require('express')
 	themecut: 10,
 	newscut: 5,
 	jade: {
-		main: 'jade/main.jade'
+		main: 'jade/main.jade',
+		subtitle: 'jade/subtitle.jade'
 		}
 	}
 , mysqlparams = {
@@ -79,8 +80,10 @@ app.get('/getthemes', function (req, res) {
   , noids = (req.query.not?req.query.not.split('|'):[])
   , id = (req.query.id?parseInt(req.query.id,10):0)
   , base = (req.query.base?parseInt(req.query.base,10):0)
+  , startnode = (req.query.startnode?parseInt(req.query.startnode,10):false)
   , num = (req.query.page?parseInt(req.query.page,10):1)
   , dohtml = (req.query.html?true:false)
+  , autoload = (req.query.noautoload?false:true)
   , themes = []
   , rubs = {}
   , disctime = setTimeout(function(){
@@ -102,8 +105,8 @@ app.get('/getthemes', function (req, res) {
 
   if (!newsgraph.updating) { // on the go
 
-	var themes = newsgraph.GetThemes(id,num,noids,rubs);
-	if (themes.length > 1) { echo = newsgraph.GetEcho(themes,noids,dohtml); } else { echo = ( dohtml ? '<!-- the end is nigh -->' : "[4,'Themes not found']") }
+	var themes = newsgraph.GetThemes(id,num,noids,rubs,startnode);
+	if (themes.length > 1) { echo = newsgraph.GetEcho(themes,noids,dohtml,autoload,rubs,startnode); } else { echo = ( dohtml ? '<!-- the end is nigh -->' : "[4,'Themes not found']") }
 	clearTimeout(disctime);
 	res.end(reconvert(echo));
 
@@ -114,8 +117,8 @@ app.get('/getthemes', function (req, res) {
     if (!newsgraph.updating) {
     clearInterval(disctime2);
 
-	var themes = newsgraph.GetThemes(id,num,noids,rubs);
-	if (themes.length > 1) { echo = newsgraph.GetEcho(themes,noids,dohtml); } else { echo = ( dohtml ? '<!-- the end is nigh -->' : "[4,'Themes not found']") }
+	var themes = newsgraph.GetThemes(id,num,noids,rubs,startnode);
+	if (themes.length > 1) { echo = newsgraph.GetEcho(themes,noids,dohtml,autoload,rubs,startnode); } else { echo = ( dohtml ? '<!-- the end is nigh -->' : "[4,'Themes not found']") }
 	clearTimeout(disctime);
 	res.end(reconvert(echo));
 
@@ -151,7 +154,7 @@ function Newsgraph() {
 	return result;
 	}
 	
-    this.GetEcho = function (result, noids, dohtml) {
+    this.GetEcho = function (result, noids, dohtml, autoload, rubs, startnode) {
 		
 	var echo = ''
 	, obj = this
@@ -164,15 +167,19 @@ function Newsgraph() {
 
 		for (var is in result) {
 			if (is > 0 && result[is].response.filled) {
+				var theme = obj.themes[result[is].id]
+				, subtitle = jade.renderFile(config.jade['subtitle'],{theme:theme,rubs:rubs})
+				;
+				if (rubs[result[is].id] && startnode != rubs[result[is].id].id) startnode = rubs[result[is].id].id;
 				noids.push(result[is].id);
-				echo += "\n\n" + result[is].response.rendered;
+				echo += "\n\n" + subtitle + "\n" + result[is].response.rendered;
 			}
 		}
 
 		for (var is in noids) if (noids[is] > maxid) maxid = noids[is];
 		maxid++; // base is at least bigger than maximum id to prevent zeroes
 		for (var is in noids) newnoids.push((maxid - noids[is]).toString(16));
-		echo += "\n\n<div class='diff_indent2 loadit' url='id=0&base="+maxid+"&not="+newnoids.join('|')+"'></div>";
+		if (autoload) echo += "\n\n<div class='diff_indent2 loadit' url='id=0&base="+maxid+"&not="+newnoids.join('|')+"&startnode="+startnode+"'></div>";
 
 		} else 
 		echo = JSON.stringify(result);	
@@ -201,7 +208,7 @@ function Newsgraph() {
 	return resultarr;
 	}
 	
-    this.GetThemes = function (id, num, noids, rubs) {
+    this.GetThemes = function (id, num, noids, rubs, startnode) {
 		
 	var disctime = setTimeout(function(){
 			return [2,'Server timed out'];
@@ -233,7 +240,7 @@ function Newsgraph() {
 	obj.GetThemesInner(0, num, noids, rubs, result); // root node / FP setup list
 	}
 
-	var parsedresult = obj.ParseResult(result, num, rubs);
+	var parsedresult = obj.ParseResult(result, num, rubs, startnode);
 	
 	return parsedresult;
 	}
@@ -251,22 +258,15 @@ function Newsgraph() {
 	topthemes = obj.Filternoids((id>0?id:0), noids, result).sort(function(a,b){ return (obj.themes[b].ci > obj.themes[a].ci || (obj.themes[b].ci == obj.themes[a].ci && obj.themes[b].weight > obj.themes[a].weight)?1:-1); });
 		
 	var maxweight = (topthemes.length > 0 ? obj.themes[topthemes[0]].weight : 1) // constituency for empty set
-	wastheme = false; 
-
 	
 	for (var is in topthemes) {
 		if (result.length > config['maxthemes']*num) break;
 		if (id > 0 && obj.themes[topthemes[is]].weight < maxweight / config['themecut']) break;
-		if (wastheme) {
-			rubs[topthemes[is]] = false;
-		}
-		else {  // fill rub entering for the jade
-			wastheme = true; 
-			rubs[topthemes[is]] = {};
-			rubs[topthemes[is]].id	= (id>0?id:0);
-			rubs[topthemes[is]].url = (id > 0 ? '/t/'+gettitleurl(obj.nodes[id].title)+'/'+geturlshort(id)+'/' : '/' );
-			rubs[topthemes[is]].title = (id > 0 ? obj.nodes[id].title : '&#1043;&#1083;&#1072;&#1074;&#1085;&#1099;&#1077; &#1090;&#1077;&#1084;&#1099; &#1076;&#1085;&#1103;' ); // root node
-		}
+		rubs[topthemes[is]] = {};
+		rubs[topthemes[is]].id	= (id>0?id:0);
+		rubs[topthemes[is]].url = (id > 0 ? '/t/'+gettitleurl(obj.nodes[id].title)+'/'+geturlshort(id)+'/' : '/' );
+		rubs[topthemes[is]].title = (id > 0 ? obj.nodes[id].title : '&#1043;&#1083;&#1072;&#1074;&#1085;&#1099;&#1077; &#1090;&#1077;&#1084;&#1099; &#1076;&#1085;&#1103;' ); // root node
+
 		result.push(topthemes[is]);
 	}
 		
@@ -280,13 +280,18 @@ function Newsgraph() {
 	return;
 	}
 	
-    this.ParseResult = function (result, num, rubs) {
+    this.ParseResult = function (result, num, rubs, node) {
 	var obj = this
 	, realresult = []
 	, realresultnum = 0
 	;
 
-	realresult.push(result[0]);
+	realresult.push(rubs);
+	
+	for (var is in result) {
+		if (rubs[result[is]] && node != rubs[result[is]].id) node = rubs[result[is]].id; // clear repeating node titles
+		else rubs[result[is]] = false;
+	}
 	
 	for (var is in result) {
 		if (obj.themes.hasOwnProperty(result[is]) && obj.themes[result[is]].type > 0 && obj.themes[result[is]].news.length > 0) {
@@ -313,7 +318,7 @@ function Newsgraph() {
 					theme.response.body = getanonsbig(obj.news[theme.response.news[0]].body);
 					theme.response.url = (theme.url != '' ? '/t/'+gettitleurl(theme.url)+'/'+geturl(result[is])+'.shtml' : '/themes/'+geturl(result[is])+'.shtml');
 					theme.response.escapedtitle = gettitleescape(theme.response.title);
-					theme.response.rendered = jade.renderFile(config.jade['main'],{theme:theme,obj:obj,is:is,rubs:rubs});
+					theme.response.rendered = jade.renderFile(config.jade['main'],{theme:theme,obj:obj,is:is});
 					theme.response.filled = true;
 				}
 			

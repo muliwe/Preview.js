@@ -1,7 +1,3 @@
-if !!rubs[theme.id]
- h2.b_head_block.b_head_block__adv 
-  a(href='#{rubs[theme.id].url}', title=(rubs[theme.id].url == '/' ? '' : rubs[theme.id].title)) !{rubs[theme.id].title}
-
 - var tclass = (theme.type == 1 ? 'nomatter_b': (theme.type == 3 ? 'breaking_b': ''))
 if theme.url
  .b_title(class = tclass)
@@ -27,7 +23,7 @@ if theme.response.news.length == 4 || theme.response.news.length == 3 || theme.r
      p !{obj.news[theme.response.news[0]].anons}
      .b_drop_box(style='display:none;')
       | !{theme.response.body} 
-      | <!-- !{obj.news[theme.response.news[0]].weight} -->
+      //- | <!-- !{obj.news[theme.response.news[0]].weight} -->
       .row_line
        .b-button-repost.b-button-repost__dropdown
         noindex
@@ -55,20 +51,20 @@ if theme.response.news.length == 4 || theme.response.news.length == 3 || theme.r
        a(href='#{theme.response.newsurl[1]}', class='b_box_head small') !{obj.news[theme.response.news[1]].title}
        if theme.response.news.length == 3
         p !{obj.news[theme.response.news[1]].anons}
-       | <!-- !{obj.news[theme.response.news[1]].weight} -->
+       //- | <!-- !{obj.news[theme.response.news[1]].weight} -->
      if theme.response.news.length == 4
       .b-box-news
        a(href='#{theme.response.newsurl[2]}', class='b_box_frame2')
         img(src=obj.news[theme.response.news[2]].image, alt='#{obj.news[theme.response.news[2]].title}', title='#{obj.news[theme.response.news[2]].title}')
        .b-box-indent
         a(href='#{theme.response.newsurl[2]}', class='b_box_head small') !{obj.news[theme.response.news[2]].title}
-        | <!-- !{obj.news[theme.response.news[2]].weight} -->
+        //- | <!-- !{obj.news[theme.response.news[2]].weight} -->
       .b-box-news.three
        a(href='#{theme.response.newsurl[3]}', class='b_box_frame2')
         img(src=obj.news[theme.response.news[3]].image, alt='#{obj.news[theme.response.news[3]].title}', title='#{obj.news[theme.response.news[3]].title}')
        .b-box-indent
         a(href='#{theme.response.newsurl[3]}', class='b_box_head small') !{obj.news[theme.response.news[3]].title}
-        | <!-- !{obj.news[theme.response.news[3]].weight} -->
+        //- | <!-- !{obj.news[theme.response.news[3]].weight} -->
      else
       .b-box-news.three
        a(href='#{theme.response.newsurl[2]}', class='b_box_frame2')
@@ -76,7 +72,7 @@ if theme.response.news.length == 4 || theme.response.news.length == 3 || theme.r
        .b-box-indent
         a(href='#{theme.response.newsurl[2]}', class='b_box_head small') !{obj.news[theme.response.news[2]].title}
         p !{obj.news[theme.response.news[2]].anons}
-        | <!-- !{obj.news[theme.response.news[2]].weight} -->
+        //- | <!-- !{obj.news[theme.response.news[2]].weight} -->
 else
  .b-mega-couple.b-mega-couple-top
   .b-content-col-l-width
