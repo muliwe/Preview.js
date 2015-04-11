@@ -1,3 +1,6 @@
 if !!rubs[theme.id]
  h2.b_head_block.b_head_block__adv 
   a(href='#{rubs[theme.id].url}', title=(rubs[theme.id].url == '/' ? '' : rubs[theme.id].title)) !{rubs[theme.id].title}
+ script(type="text/javascript").
+  console.log("knocked #{rubs[theme.id].id}");
+  

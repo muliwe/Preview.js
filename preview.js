@@ -80,7 +80,7 @@ app.get('/getthemes', function (req, res) {
   , noids = (req.query.not?req.query.not.split('|'):[])
   , id = (req.query.id?parseInt(req.query.id,10):0)
   , base = (req.query.base?parseInt(req.query.base,10):0)
-  , startnode = (req.query.startnode?parseInt(req.query.startnode,10):false)
+  , startnode = (req.query.startnode?parseInt(req.query.startnode,10):-1)
   , num = (req.query.page?parseInt(req.query.page,10):1)
   , dohtml = (req.query.html?true:false)
   , autoload = (req.query.noautoload?false:true)
@@ -229,10 +229,11 @@ function Newsgraph() {
 		obj.GetThemesInner(id, num, noids, rubs, result); // rub or keyword themes
 	} else if (id == 0 && noids.length == 1) // relative themes to one theme
 	{
-		if (!obj.themes.hasOwnProperty(noids[0]) || obj.themes[noids[0]].type == 0)
-			return [5,'Wrong or invisible theme '+noids[0]];
-
-		var toprubs = obj.themes[noids[0]].parents.sort(function(a,b){ return obj.nodes[b].weightpath>obj.nodes[a].weightpath?1:-1; }); // sorted with long-hand weight priority, replace .weightpath with .weight for short-hand sort
+		var toprubs = [0]; // root for unknown, invisible or "seo-news" theme
+		if (!obj.themes.hasOwnProperty(noids[0]) || obj.themes[noids[0]].type == 0) 
+//			return [5,'Wrong or invisible theme '+noids[0]]; // remove for consistency< do nothing
+		{} else 
+		toprubs = obj.themes[noids[0]].parents.sort(function(a,b){ return obj.nodes[b].weightpath>obj.nodes[a].weightpath?1:-1; }); // sorted with long-hand weight priority, replace .weightpath with .weight for short-hand sort
 		
 		obj.GetThemesInner(toprubs[0], num, noids, rubs, result); // most weighted parent themes
 	} else {
@@ -289,8 +290,10 @@ function Newsgraph() {
 	realresult.push(rubs);
 	
 	for (var is in result) {
+		if (is > 0) {
 		if (rubs[result[is]] && node != rubs[result[is]].id) node = rubs[result[is]].id; // clear repeating node titles
 		else rubs[result[is]] = false;
+		}
 	}
 	
 	for (var is in result) {
