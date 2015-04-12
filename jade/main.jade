@@ -1,8 +1,20 @@
 - var tclass = (theme.type == 1 ? 'nomatter_b': (theme.type == 3 ? 'breaking_b': ''))
+- var topkeywords = obj.Keyz(theme.keywords).sort(function(a,b){ return obj.nodes[b].weight>obj.nodes[a].weight?1:-1; })
+
 if theme.url
  .b_title(class = tclass)
   p.title_h
    a(href='#{theme.response.url}', title='#{theme.url}') !{theme.url}
+  if topkeywords.length > 0
+   ul.b_title_list
+    - var firstkeyword = false
+    - var ii = 0
+    each keyword, i in topkeywords
+     if ii < 4 && (!firstkeywords || obj.nodes[keyword].weight > obj.nodes[firstkeywords].weight / 3) && keyword != 4
+      - firstkeyword = (firstkeyword ? firstkeyword : keyword)
+      - ii++ 
+       li &#32;
+        a(href='#{obj.nodes[keyword].url}', title='#{obj.nodes[keyword].title}') !{obj.nodes[keyword].title}
 else
  .b_title(class = tclass)
   p.title_h

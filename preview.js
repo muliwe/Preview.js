@@ -163,9 +163,18 @@ function Newsgraph() {
 	
 	this.Keyz = function(arr,hex) {
 	var result = [];
+	var was = {};
 	
 	if (arr.constructor === Array)
-		{	for (k in arr) { var l = parseInt(arr[k],(hex?16:10)); if (!!l && l > 0) result.push(l); }	}
+		{	
+			for (k in arr) { 
+				var l = parseInt(arr[k],(hex?16:10)); 
+				if (!!l && l > 0 && !was.hasOwnProperty(l)) {
+					was[l] = true; // unique filter
+					result.push(l); 
+				}
+			}	
+		}
 	else
 	Object.keys(arr).forEach(function(k, index, array){ var l = parseInt(k,(hex?16:10)); if (!!l && l > 0) result.push(l); });
 		
@@ -283,7 +292,7 @@ function Newsgraph() {
 		if (id > 0 && obj.themes[topthemes[is]].weight < maxweight / config['themecut']) break;
 		rubs[topthemes[is]] = {};
 		rubs[topthemes[is]].id	= (id>0?id:0);
-		rubs[topthemes[is]].url = (id > 0 ? '/t/'+gettitleurl(obj.nodes[id].title)+'/'+geturlshort(id)+'/' : '/' );
+		rubs[topthemes[is]].url = (id > 0 ? obj.nodes[id].url : '/' );
 		rubs[topthemes[is]].title = (id > 0 ? obj.nodes[id].title : '&#1043;&#1083;&#1072;&#1074;&#1085;&#1099;&#1077; &#1090;&#1077;&#1084;&#1099; &#1076;&#1085;&#1103;' ); // root node
 
 		result.push(topthemes[is]);
@@ -383,6 +392,7 @@ function Newsgraph() {
 				if (!obj.nodes.hasOwnProperty(id)) obj.nodes[id] = new Newsnode(id);
 				obj.nodes[id].parent = rows[is].parent;
 				obj.nodes[id].title = rows[is].title;
+				obj.nodes[id].url = (rows[is].type == 1 ? '/t/' : '/k/')+gettitleurl(rows[is].title)+'/'+geturlshort(id)+'/';
 				obj.nodes[id].type = rows[is].type;
 			}
 			for (var is in rows) {
@@ -576,7 +586,8 @@ function Newsnode (id) {
 	this.path = [id];
 	this.children = [];
 	this.themes = [];
-
+	this.url = '/t/'+gettitleurl(this.title)+'/'+geturlshort(id)+'/';
+	
     this.Getpath = function (obj,force) {
 //		console.log(this);
 		if (!this.id) return [0];
