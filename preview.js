@@ -7,6 +7,7 @@ var express = require('express')
 , moment  = require('moment')
 , Iconv  = require('iconv').Iconv
 , Buffer = require('buffer').Buffer
+, crypto  = require('crypto')
 , jade = require('jade')
 , config = {
 	host: 'http://editor.ruscur.ru',
@@ -58,7 +59,7 @@ app.get('/', function (req, res) {
   , ip = req.connection.remoteAddress
   ;
 
-  echo = 'Last news graph status: '+newsgraph.GetStatus()+ '\nRubs cache date: '+currdate.format("D/MM HH:mm:ss")+ '\nNews cache date: '+currdate2.format("D/MM HH:mm:ss");
+  echo = 'Last news graph status: '+newsgraph.GetStatus()+ '\nRubs cache date: '+currdate.format("D/MM HH:mm:ss")+ '\nNews cache date: '+currdate2.format("D/MM HH:mm:ss") +'\nTotal request till renew: '+(newsgraph.cache.cached + newsgraph.cache.nocached) + ', cached: '+ parseInt(newsgraph.cache.cached / (newsgraph.cache.cached + newsgraph.cache.nocached)*1000)/10 + '% on '+(Object.keys(newsgraph.cache).length-2)+' unique urls';
 
   if (host_allowed(ip)) {
 	  if (isbefore || flush) {
@@ -77,13 +78,15 @@ app.get('/', function (req, res) {
 app.get('/getthemes', function (req, res) {
 
   var echo = "[1,'Server is busy']"
-  , noids = (req.query.not?req.query.not.split('|'):[])
-  , id = (req.query.id?parseInt(req.query.id,10):0)
+  , noids = (req.query.noids?req.query.noids.split(/(\||\%7C)/):(req.query.not?req.query.not.split(/(\||\%7C)/):[]))
   , base = (req.query.base?parseInt(req.query.base,10):0)
   , startnode = (req.query.startnode?parseInt(req.query.startnode,10):-1)
+  , id = (startnode != -1 && noids.length > 1 ? startnode // deep into previous pipe
+	: (req.query.id?parseInt(req.query.id,10):0)) 
   , num = (req.query.page?parseInt(req.query.page,10):1)
   , dohtml = (req.query.html?true:false)
   , autoload = (req.query.noautoload?false:true)
+  , querystring = req.originalUrl.toString()
   , themes = []
   , rubs = {}
   , disctime = setTimeout(function(){
@@ -94,37 +97,51 @@ app.get('/getthemes', function (req, res) {
   }, config['timeout']) // disconnect timeout
   ;
   
-  id = (id>0?id:0);
-  noids = newsgraph.Keyz(noids,base > 0);
-  if (base > 0) for (k in noids) noids[k] = base - noids[k];
+  if (querystring.match(/\&_=\d+/)) querystring = querystring.replace(/\&_=\d+/,"");
+  var hash = parseInt(crypto.createHash('md5').update(querystring).digest('hex').substring(0,8), 16);
   
+  id = (id>0?id:0);
+  noids = newsgraph.Keyz(noids,base > 0); // hex if base is defined
+  if (base > 0) for (k in noids) noids[k] = parseInt((base - noids[k]).toString(10),10); // forget hex encoding
+  
+//  console.log([querystring,hash,newsgraph.cache.cached, newsgraph.cache.nocached, newsgraph.cache.hasOwnProperty(hash)]);
+
   if (dohtml)
   res.writeHead(200, {"Content-Type": "text/html; charset=utf-8"}); 
   else 
   res.writeHead(200, {"Content-Type": "application/json; charset=utf-8"}); 
 
-  if (!newsgraph.updating) { // on the go
+  if (newsgraph.cache.hasOwnProperty(hash)) {
+	  // has cache
+		res.end(reconvert(newsgraph.cache[hash]));
+		newsgraph.cache.cached++;
+  } else {
+	newsgraph.cache.nocached++;
+	if (!newsgraph.updating) { // on the go
 
-	var themes = newsgraph.GetThemes(id,num,noids,rubs,startnode);
-	if (themes.length > 1) { echo = newsgraph.GetEcho(themes,noids,dohtml,autoload,rubs,startnode); } else { echo = ( dohtml ? '<!-- the end is nigh -->' : "[4,'Themes not found']") }
-	clearTimeout(disctime);
-	res.end(reconvert(echo));
+		var themes = newsgraph.GetThemes(id,num,noids,rubs,startnode);
+		if (themes.length > 1) { echo = newsgraph.GetEcho(themes,noids,dohtml,autoload,rubs,startnode); } else { echo = ( dohtml ? '<!-- the end is nigh -->' : "[4,'Themes not found']") }
+		clearTimeout(disctime);
+		newsgraph.cache[hash] = echo; // fill cache
+		res.end(reconvert(echo));
 
-  } else { // on the go
-  
-  var disctime2 = setInterval(function() {
+	  } else { // wait
 	  
-    if (!newsgraph.updating) {
-    clearInterval(disctime2);
+	  var disctime2 = setInterval(function() {
+		  
+		if (!newsgraph.updating) {
+		clearInterval(disctime2);
 
-	var themes = newsgraph.GetThemes(id,num,noids,rubs,startnode);
-	if (themes.length > 1) { echo = newsgraph.GetEcho(themes,noids,dohtml,autoload,rubs,startnode); } else { echo = ( dohtml ? '<!-- the end is nigh -->' : "[4,'Themes not found']") }
-	clearTimeout(disctime);
-	res.end(reconvert(echo));
+		var themes = newsgraph.GetThemes(id,num,noids,rubs,startnode);
+		if (themes.length > 1) { echo = newsgraph.GetEcho(themes,noids,dohtml,autoload,rubs,startnode); } else { echo = ( dohtml ? '<!-- the end is nigh -->' : "[4,'Themes not found']") }
+		clearTimeout(disctime);
+		newsgraph.cache[hash] = echo; // fill cache
+		res.end(reconvert(echo));
 
-	}
-  }, config['timeout']/100); // tick interval
-  
+		}
+	  }, config['timeout']/300); // tick interval
+	  
+	  }
   }
  });
 
@@ -139,6 +156,7 @@ function Newsgraph() {
     this.nodes = {};
     this.themes = {};
     this.news = {};
+	this.cache = {cached:0,nocached:0};
 	
     this.laststatus = 'Graph is created';
 	this.updating = false;
@@ -179,7 +197,7 @@ function Newsgraph() {
 		for (var is in noids) if (noids[is] > maxid) maxid = noids[is];
 		maxid++; // base is at least bigger than maximum id to prevent zeroes
 		for (var is in noids) newnoids.push((maxid - noids[is]).toString(16));
-		if (autoload) echo += "\n\n<div class='diff_indent2 loadit' url='id=0&base="+maxid+"&not="+newnoids.join('|')+"&startnode="+startnode+"'></div>";
+		if (autoload) echo += "\n\n<div class='diff_indent2 loadit' url='id=0&base="+maxid+"&noids="+newnoids.join('|')+"&startnode="+startnode+"'></div>";
 
 		} else 
 		echo = JSON.stringify(result);	
@@ -404,6 +422,8 @@ function Newsgraph() {
 		
 		this.themes = {}; // drop themes cache
 		this.news = {}; // drop news cache
+		this.cache = {cached:0,nocached:0}; // drop html cache
+		
 		obj.Keyz(obj.nodes).forEach(function(k, index, array){ obj.nodes[k].themes=[]; }) // drop themes connected to node cache
 //		obj.themes[0] = new Newstheme(0); obj.themes[0].type = 0; // we can create root node for consistency
 		connection.query("select t.id as id, b.id as bid, t.pd as tpd, b.pd as bpd, t.type, b.body, b.genbody, t.title as tt, t.image as ti, t.anons as ta, b.image as bi, b.anons as ba, t.ci, t.url "+
