@@ -59,7 +59,7 @@ app.get('/', function (req, res) {
   , ip = req.connection.remoteAddress
   ;
 
-  echo = 'Last news graph status: '+newsgraph.GetStatus()+ '\nRubs cache date: '+currdate.format("D/MM HH:mm:ss")+ '\nNews cache date: '+currdate2.format("D/MM HH:mm:ss") +'\nTotal request till renew: '+(newsgraph.cache.cached + newsgraph.cache.nocached) + ', cached: '+ parseInt(newsgraph.cache.cached / (newsgraph.cache.cached + newsgraph.cache.nocached)*1000)/10 + '% on '+(Object.keys(newsgraph.cache).length-2)+' unique urls';
+  echo = 'Last news graph status: '+newsgraph.GetStatus()+ '\nRubs cache date: '+currdate.format("D/MM HH:mm:ss")+ '\nNews cache date: '+currdate2.format("D/MM HH:mm:ss") +'\nTotal requests after last renew: '+(newsgraph.cache.cached + newsgraph.cache.nocached) + ', cached: '+ parseInt(newsgraph.cache.cached / (newsgraph.cache.cached + newsgraph.cache.nocached)*1000)/10 + '% on '+(Object.keys(newsgraph.cache).length-2)+' unique urls';
 
   if (host_allowed(ip)) {
 	  if (isbefore || flush) {
@@ -83,6 +83,7 @@ app.get('/getthemes', function (req, res) {
   , startnode = (req.query.startnode?parseInt(req.query.startnode,10):-1)
   , id = (startnode != -1 && noids.length > 1 ? startnode // deep into previous pipe
 	: (req.query.id?parseInt(req.query.id,10):0)) 
+  , realid = (req.query.id?parseInt(req.query.id,10):-1)
   , num = (req.query.page?parseInt(req.query.page,10):1)
   , dohtml = (req.query.html?true:false)
   , autoload = (req.query.noautoload?false:true)
@@ -120,7 +121,7 @@ app.get('/getthemes', function (req, res) {
 	if (!newsgraph.updating) { // on the go
 
 		var themes = newsgraph.GetThemes(id,num,noids,rubs,startnode);
-		if (themes.length > 1) { echo = newsgraph.GetEcho(themes,noids,dohtml,autoload,rubs,startnode); } else { echo = ( dohtml ? '<!-- the end is nigh -->' : "[4,'Themes not found']") }
+		if (themes.length > 1) { echo = newsgraph.GetEcho(themes,noids,dohtml,autoload,rubs,startnode,realid); } else { echo = ( dohtml ? '<!-- the end is nigh -->' : "[4,'Themes not found']") }
 		clearTimeout(disctime);
 		newsgraph.cache[hash] = echo; // fill cache
 		res.end(reconvert(echo));
@@ -133,7 +134,7 @@ app.get('/getthemes', function (req, res) {
 		clearInterval(disctime2);
 
 		var themes = newsgraph.GetThemes(id,num,noids,rubs,startnode);
-		if (themes.length > 1) { echo = newsgraph.GetEcho(themes,noids,dohtml,autoload,rubs,startnode); } else { echo = ( dohtml ? '<!-- the end is nigh -->' : "[4,'Themes not found']") }
+		if (themes.length > 1) { echo = newsgraph.GetEcho(themes,noids,dohtml,autoload,rubs,startnode,realid); } else { echo = ( dohtml ? '<!-- the end is nigh -->' : "[4,'Themes not found']") }
 		clearTimeout(disctime);
 		newsgraph.cache[hash] = echo; // fill cache
 		res.end(reconvert(echo));
@@ -181,7 +182,7 @@ function Newsgraph() {
 	return result;
 	}
 	
-    this.GetEcho = function (result, noids, dohtml, autoload, rubs, startnode) {
+    this.GetEcho = function (result, noids, dohtml, autoload, rubs, startnode, realid) {
 		
 	var echo = ''
 	, obj = this
@@ -195,7 +196,7 @@ function Newsgraph() {
 		for (var is in result) {
 			if (is > 0 && result[is].response.filled) {
 				var theme = obj.themes[result[is].id]
-				, subtitle = jade.renderFile(config.jade['subtitle'],{theme:theme,rubs:rubs})
+				, subtitle = jade.renderFile(config.jade['subtitle'],{theme:theme,rubs:rubs,id:realid})
 				;
 				if (rubs[result[is].id] && startnode != rubs[result[is].id].id) startnode = rubs[result[is].id].id;
 				noids.push(result[is].id);
@@ -258,7 +259,7 @@ function Newsgraph() {
 	{
 		var toprubs = [0]; // root for unknown, invisible or "seo-news" theme
 		if (!obj.themes.hasOwnProperty(noids[0]) || obj.themes[noids[0]].type == 0) 
-//			return [5,'Wrong or invisible theme '+noids[0]]; // remove for consistency< do nothing
+//			return [5,'Wrong or invisible theme '+noids[0]]; // remove for consistency, do nothing
 		{} else 
 		toprubs = obj.themes[noids[0]].parents.sort(function(a,b){ return obj.nodes[b].weightpath>obj.nodes[a].weightpath?1:-1; }); // sorted with long-hand weight priority, replace .weightpath with .weight for short-hand sort
 		
