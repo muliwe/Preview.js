@@ -1,0 +1,34 @@
+| !{obj.cache['banner_hor_video']}
+.b_title
+    p.title_h
+        a(href="/video.shtml") &#1042;&#1080;&#1076;&#1077;&#1086; &#1076;&#1085;&#1103;
+.block
+    .b-box-news.diff(id="b_video")
+        .video_holder
+            a(href=obj.news[video.news].url, class="b_title_big") !{video.videotitle}
+            a(href="#", class="btn_list")
+                span.icon.icon-menu
+            .b_box_frame
+                a(href="#", class="btn_play", onclick="\$(this).hide();return youtubeenables"+video.id+"();")
+                    span.icon.icon-play
+                div(id="youtubeembeds"+video.id)
+                    a.b-mega-big-vetrina-pic.b-mega-big-vetrina-pic__video(href="#", onclick="return youtubeenables"+video.id+"();", style="background-image: url("+video.videopic+");")
+
+        | !{obj.cache['video_small']}
+
+if (!video.tvigle && !video.vimeo)
+    script(type="text/javascript").
+        var content!{video.id} = '<iframe src="http://www.youtube.com/embed/!{video.videourl}?autohide=1&modestbranding=1&color=white&rel=0&autoplay=1" frameborder=0 allowfullscreen></iframe>';
+else if (video.tvigle)
+    script(type="text/javascript").
+        var content!{video.id} = '<iframe id="v" name="vjs" src="http://cloud.tvigle.ru/video/!{video.tvigle}/?width=100%&height=505px&partnerId=2359&playerId=53&logoAlign=r&trackable=true&copyCode=false&site_url=http%3A%2F%2Fruscur.ru%2F&timeAlign=l&showHeaderTitle=true&shareable=true&autoStart=true" frameborder="no" scrolling="no" webkitallowfullscreen="" mozallowfullscreen="" allowfullscreen=""></iframe>';
+else if (video.vimeo)
+    script(type="text/javascript").
+        var content!{video.id} = '<iframe src="//player.vimeo.com/video/!{video.vimeo}?color=FFFFFF&amp;autoplay=1" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>';
+
+script(type="text/javascript").
+  function youtubeenables!{video.id} () {   
+  if (document.getElementById("youtubeembeds!{video.id}")!=null)  {
+  document.getElementById("youtubeembeds!{video.id}").innerHTML=content!{video.id};
+  }
+  return false; }
