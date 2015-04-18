@@ -5,7 +5,10 @@
 .block
     .b-box-news.diff(id="b_video")
         .video_holder
-            a(href=obj.news[video.news].url, class="b_title_big") !{video.videotitle}
+            if obj.news[video.news]
+                a(href=obj.news[video.news].url, class="b_title_big") !{video.videotitle}
+            else
+                | !{video.videotitle}
             a(href="#", class="btn_list")
                 span.icon.icon-menu
             .b_box_frame

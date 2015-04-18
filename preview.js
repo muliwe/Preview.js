@@ -256,6 +256,7 @@ function Newsgraph() {
 		
 	if (videos.length > 0) {
 		var topvideos = videos.sort(function(a,b){ return (b.weight>a.weight?1:-1); });
+//		console.log(topvideos[0]);
 		if (!topvideos[0].body) topvideos[0].body = jade.renderFile(config.jade['video'],{video:topvideos[0],obj:obj});
 		return topvideos[0].body;
 	} else return '';
@@ -488,7 +489,7 @@ function Newsgraph() {
 		
 		obj.Keyz(obj.nodes).forEach(function(k, index, array){ obj.nodes[k].themes=[]; }) // drop themes connected to node cache
 //		obj.themes[0] = new Newstheme(0); obj.themes[0].type = 0; // we can create root node for consistency
-		connection.query("select t.id as id, b.id as bid, t.pd as tpd, b.pd as bpd, t.type as ttype, b.type as btype, b.fromid, b.body, b.genbody, t.title as tt, t.image as ti, t.anons as ta, b.image as bi, b.anons as ba, t.ci, t.url "+
+		connection.query("select t.id as id, b.id as bid, t.pd as tpd, b.pd as bpd, t.type as ttype, b.type as btype, b.tid, b.body, b.genbody, t.title as tt, t.image as ti, t.anons as ta, b.image as bi, b.anons as ba, t.ci, t.url "+
 		"from ruscurthemes as t join ruscurbricks as b on b.themeid = t.id and ((b.type = 1 and b.vis = 2) or (b.type = 6 and b.vis > 0)) where t.type > 0 and t.type <> 4 and b.pd > ?", [fromdate], function(err, rows, fields) { 
 		if (err) {
 			obj.laststatus = 'News updating error: '+ err;
@@ -529,7 +530,7 @@ function Newsgraph() {
 					var video = {};
 					video = getbodyobj(video,rows[is].body);
 					video.id = bid;
-					video.news = rows[is].fromid;
+					video.news = rows[is].tid;
 					video.theme = tid;
 					video.pd = moment(rows[is].bpd,"YYYYMMDDHHmmss");
 					video.age = nowdate.diff(video.pd, 'hours');
