@@ -1,4 +1,5 @@
 if !!rubs[theme.id]
+ - var json = (rubs[theme.id].id ? JSON.stringify(obj.nodes[rubs[theme.id].id].path) : '[0]')
  if rubs[theme.id].id == id
   h1.b_head_block.b_head_block__adv
    if rubs[theme.id].id
@@ -10,3 +11,4 @@ if !!rubs[theme.id]
    a(href='#{rubs[theme.id].url}', title=(rubs[theme.id].url == '/' ? '' : rubs[theme.id].title)) !{rubs[theme.id].title}
  script(type="text/javascript").
    console.log("knocked #{rubs[theme.id].id}");
+   shownode(!{json});

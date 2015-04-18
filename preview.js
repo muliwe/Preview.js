@@ -213,7 +213,7 @@ function Newsgraph() {
 		for (var is in result) {
 			if (is > 0 && result[is].response.filled) {
 				var theme = obj.themes[result[is].id]
-				, subtitle = jade.renderFile(config.jade['subtitle'],{theme:theme,rubs:rubs,id:realid})
+				, subtitle = jade.renderFile(config.jade['subtitle'],{obj:obj,theme:theme,rubs:rubs,id:realid})
 				;
 				if (rubs[result[is].id] && startnode != rubs[result[is].id].id) startnode = rubs[result[is].id].id;
 				noids.push(result[is].id);
