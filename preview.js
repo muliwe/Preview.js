@@ -17,11 +17,12 @@ var express = require('express')
     rejectconnectedhttp: 5000,
     timeout: 30000,
 	maxthemes: 10,
+	maxthemesfp: 20,
 	maxnews: 20,
 	maxnewsintheme: 4,
 	keywordcut: 0.1,
 	themecut: 10,
-	videocut: 3,
+	videocut: 5,
 	newscut: 5,
 	jade: {
 		main: 'jade/main.jade',
@@ -317,7 +318,7 @@ function Newsgraph() {
 	obj.GetThemesInner(0, num, noids, rubs, result); // root node / FP setup list
 	}
 
-	var parsedresult = obj.ParseResult(result, num, rubs, startnode);
+	var parsedresult = obj.ParseResult(result, num, noids, rubs, startnode);
 	
 	return parsedresult;
 	}
@@ -325,19 +326,20 @@ function Newsgraph() {
     this.GetThemesInner = function (id, num, noids, rubs, result) {
 	var obj = this
 	, type = (id > 0 ? obj.nodes[id].type : 0)
+	, maxthemes = (noids.length > 0 ? config['maxthemes'] : config['maxthemesfp']) // only first time
 	, topthemes = []
 	;
 	
 	num = (num > 0 ? num : 1);
 	
-	if (result.length > config['maxthemes']*num) return;
+	if (result.length > maxthemes*num) return;
 
 	topthemes = obj.Filternoids((id>0?id:0), noids, result).sort(function(a,b){ return (obj.themes[b].ci > obj.themes[a].ci || (obj.themes[b].ci == obj.themes[a].ci && obj.themes[b].weight > obj.themes[a].weight)?1:-1); });
 		
 	var maxweight = (topthemes.length > 0 ? obj.themes[topthemes[0]].weight : 1) // constituency for empty set
 	
 	for (var is in topthemes) {
-		if (result.length > config['maxthemes']*num) break;
+		if (result.length > maxthemes*num) break;
 		if (id > 0 && obj.themes[topthemes[is]].weight < maxweight / config['themecut']) break;
 		rubs[topthemes[is]] = {};
 		rubs[topthemes[is]].id	= (id>0?id:0);
@@ -347,7 +349,7 @@ function Newsgraph() {
 		result.push(topthemes[is]);
 	}
 		
-	if (result.length > config['maxthemes']*num) return;
+	if (result.length > maxthemes*num) return;
 		
 	if ( id > 0 ) {
 		if (obj.nodes[id].parent > 0 && obj.nodes[obj.nodes[id].parent].type > 0) obj.GetThemesInner(obj.nodes[id].parent, num, noids, rubs, result);
@@ -357,10 +359,11 @@ function Newsgraph() {
 	return;
 	}
 	
-    this.ParseResult = function (result, num, rubs, node) {
+    this.ParseResult = function (result, num, noids, rubs, node) {
 	var obj = this
 	, realresult = []
 	, realresultnum = 0
+	, maxthemes = (noids.length > 0 ? config['maxthemes'] : config['maxthemesfp'])
 	;
 
 	realresult.push(rubs);
@@ -403,8 +406,8 @@ function Newsgraph() {
 			
 			if (obj.themes[result[is]].response.hasOwnProperty('news')) realresultnum += theme.response.news.length;
 			
-			if (num == 0 || (is > config['maxthemes']*(num-1) && is < config['maxthemes']*num+1)) realresult.push(theme); // show only numth page or first maxnews news if num is set to zero
-			if (num == 0 && realresultnum > config['maxthemes']) break;
+			if (num == 0 || (is > maxthemes*(num-1) && is < maxthemes*num+1)) realresult.push(theme); // show only numth page or first maxnews news if num is set to zero
+			if (num == 0 && realresultnum > maxthemes) break;
 		}
 	}
 		
