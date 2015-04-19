@@ -20,7 +20,7 @@ var express = require('express')
 	maxthemesfp: 20,
 	maxnews: 20,
 	maxnewsintheme: 4,
-	keywordcut: 0.1,
+	keywordcut: 0.5,
 	themecut: 10,
 	videocut: 5,
 	newscut: 5,
@@ -171,6 +171,7 @@ function Newsgraph() {
     this.nodes = {};
     this.themes = {};
     this.news = {};
+    this.videos = {};
 	this.cache = {cached:0,nocached:0};
 	
     this.laststatus = 'Graph is created';
@@ -249,17 +250,16 @@ function Newsgraph() {
 
 	for (var is in result) {
 		if (is > 0 && result[is].response.filled && obj.themes.hasOwnProperty(result[is].id) && obj.themes[result[is].id].videos.length > 0) {
-				var theme = obj.themes[result[is].id]
-				, topvideos = theme.videos.sort(function(a,b){ return (b.weight>a.weight?1:-1); });
+				var topvideos = obj.themes[result[is].id].videos.sort(function(a,b){ return (obj.videos[b].weight>obj.videos[a].weight?1:-1); });
 				videos.push(topvideos[0]);
 			}
 		}
+	
 		
 	if (videos.length > 0) {
-		var topvideos = videos.sort(function(a,b){ return (b.weight>a.weight?1:-1); });
-//		console.log(topvideos[0]);
-		if (!topvideos[0].body) topvideos[0].body = jade.renderFile(config.jade['video'],{video:topvideos[0],obj:obj});
-		return topvideos[0].body;
+		var topvideos = videos.sort(function(a,b){ return (obj.videos[b].weight>obj.videos[a].weight?1:-1); });
+		if (!obj.videos[topvideos[0]].body) obj.videos[topvideos[0]].body = jade.renderFile(config.jade['video'],{video:obj.videos[topvideos[0]],obj:obj});
+		return obj.videos[topvideos[0]].body;
 	} else return '';
 
 	}
@@ -484,6 +484,7 @@ function Newsgraph() {
 		
 		this.themes = {}; // drop themes cache
 		this.news = {}; // drop news cache
+		this.videos = {}; // drop videos cache
 		this.cache = {cached:0,nocached:0}; // drop html cache
 
 		Object.keys(config.cache).forEach(function(k, index, array){ 
@@ -521,7 +522,7 @@ function Newsgraph() {
 					obj.news[bid] = new Newstitle(tid, bid);
 					obj.news[bid].body = rows[is].genbody;
 					obj.news[bid].bodyobj = {};
-					obj.news[bid].bodyobj  = getbodyobj(obj.news[bid].bodyobj,rows[is].body);
+					obj.news[bid].bodyobj  = getbodyobj({},rows[is].body);
 					obj.news[bid].title = (obj.news[bid].bodyobj.hasOwnProperty('title')?obj.news[bid].bodyobj['title']:obj.news[bid].title);
 					obj.news[bid].type = (obj.news[bid].bodyobj.hasOwnProperty('subtype')?parseInt(obj.news[bid].bodyobj['subtype'],10):obj.news[bid].type);
 					obj.news[bid].anons = rows[is].ba;
@@ -530,16 +531,11 @@ function Newsgraph() {
 					obj.news[bid].age = nowdate.diff(obj.news[bid].pd, 'hours');
 					
 				} else if (rows[is].btype == 6) { // add video to news
-					var video = {};
-					video = getbodyobj(video,rows[is].body);
-					video.id = bid;
-					video.news = rows[is].tid;
-					video.theme = tid;
-					video.pd = moment(rows[is].bpd,"YYYYMMDDHHmmss");
-					video.age = nowdate.diff(video.pd, 'hours');
-					video.weight = parseInt(24/(24+video.age)*100 ,10)/100; // 24/(24 + H) // keep 2 digits after point
-					video.body = false; // render on demand later in GetVideo
-					obj.themes[tid].videos.push(video);
+					obj.videos[bid] = new Newsvideo(tid, rows[is].tid, rows[is].body, bid);
+					obj.videos[bid].pd = moment(rows[is].bpd,"YYYYMMDDHHmmss");
+					obj.videos[bid].age = nowdate.diff(obj.videos[bid].pd, 'hours');
+					obj.videos[bid].weight = parseInt(24/(24+obj.videos[bid].age)*100 ,10)/100; // 24/(24 + H) // keep 2 digits after point
+					obj.themes[tid].videos.push(bid);
 				}
 			}
 			
@@ -552,7 +548,7 @@ function Newsgraph() {
 			});
 
 			obj.Keyz(obj.themes).forEach(function(k, index, array){
-				for (var is in obj.themes[k].videos) obj.themes[k].videos[is].weight = parseInt(obj.themes[k].weight*obj.themes[k].videos[is].weight*100 ,10)/100; // keep 2 digits after point;
+				for (var it in obj.themes[k].videos) obj.videos[obj.themes[k].videos[it]].weight = parseInt(obj.themes[k].weight*obj.videos[obj.themes[k].videos[it]].weight*100 ,10)/100; // keep 2 digits after point;
 			});
 			
 			obj.laststatus = 'Graph news are updated';
@@ -717,6 +713,27 @@ function Newstitle (tid, id) {
 	this.age = 0;
     this.type = 1;
 	this.weight = 1;
+}
+
+function Newsvideo (tid, nid, body, id) {
+
+	var params = {};
+	params = getbodyobj({},body);
+
+	this.id = id;
+	this.news = nid;
+	this.theme = tid;
+	this.pd = currdate;
+	this.age = 0;
+	this.weight = 0;
+	this.body = false; // render on demand later in GetVideo
+	this.type = params['type'];
+	this.videotype = params['videotype'];
+	this.videotitle = params['videotitle'];
+	this.videopic = params['videopic'];
+	this.videourl = params['videourl'];
+	this.tvigle = params['tvigle'];
+	this.vimeo = params['vimeo'];
 }
 
 // processing functions
