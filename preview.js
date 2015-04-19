@@ -132,6 +132,7 @@ app.get('/getthemes', function (req, res) {
 		newsgraph.cache.cached++;
   } else {
 	newsgraph.cache.nocached++;
+//	console.log(querystring);
 	if (!newsgraph.updating) { // on the go
 
 		var themes = newsgraph.GetThemes(id,num,noids,rubs,startnode);
@@ -250,14 +251,14 @@ function Newsgraph() {
 
 	for (var is in result) {
 		if (is > 0 && result[is].response.filled && obj.themes.hasOwnProperty(result[is].id) && obj.themes[result[is].id].videos.length > 0) {
-				var topvideos = obj.themes[result[is].id].videos.sort(function(a,b){ return (obj.videos[b].weight>obj.videos[a].weight?1:-1); });
+				var topvideos = obj.themes[result[is].id].videos.sort(function(a,b){ return obj.videos[b].weight - obj.videos[a].weight; });
 				videos.push(topvideos[0]);
 			}
 		}
 	
 		
 	if (videos.length > 0) {
-		var topvideos = videos.sort(function(a,b){ return (obj.videos[b].weight>obj.videos[a].weight?1:-1); });
+		var topvideos = videos.sort(function(a,b){ return obj.videos[b].weight - obj.videos[a].weight; });
 		if (!obj.videos[topvideos[0]].body) obj.videos[topvideos[0]].body = jade.renderFile(config.jade['video'],{video:obj.videos[topvideos[0]],obj:obj});
 		return obj.videos[topvideos[0]].body;
 	} else return '';
@@ -310,7 +311,7 @@ function Newsgraph() {
 		if (!obj.themes.hasOwnProperty(noids[0]) || obj.themes[noids[0]].type == 0) 
 //			return [5,'Wrong or invisible theme '+noids[0]]; // remove for consistency, do nothing
 		{} else 
-		toprubs = obj.themes[noids[0]].parents.sort(function(a,b){ return obj.nodes[b].weightpath>obj.nodes[a].weightpath?1:-1; }); // sorted with long-hand weight priority, replace .weightpath with .weight for short-hand sort
+		toprubs = obj.themes[noids[0]].parents.sort(function(a,b){ return obj.nodes[b].weightpath - obj.nodes[a].weightpath; }); // sorted with long-hand weight priority, replace .weightpath with .weight for short-hand sort
 		
 		obj.GetThemesInner(toprubs[0], num, noids, rubs, result); // most weighted parent themes
 	} else {
@@ -334,7 +335,7 @@ function Newsgraph() {
 	
 	if (result.length > maxthemes*num) return;
 
-	topthemes = obj.Filternoids((id>0?id:0), noids, result).sort(function(a,b){ return (obj.themes[b].ci > obj.themes[a].ci || (obj.themes[b].ci == obj.themes[a].ci && obj.themes[b].weight > obj.themes[a].weight)?1:-1); });
+	topthemes = obj.Filternoids((id>0?id:0), noids, result).sort(function(a,b){ return (obj.themes[b].ci - obj.themes[a].ci) || (obj.themes[b].weight - obj.themes[a].weight); });
 		
 	var maxweight = (topthemes.length > 0 ? obj.themes[topthemes[0]].weight : 1) // constituency for empty set
 	
@@ -384,7 +385,7 @@ function Newsgraph() {
 					theme.response.news=[];
 					theme.response.newsurl=[];
 					
-					var topnews = obj.Keyz(theme.news).sort(function(a,b){ return (obj.news[b].weight > obj.news[a].weight?1:-1); })
+					var topnews = obj.Keyz(theme.news).sort(function(a,b){ return obj.news[b].weight - obj.news[a].weight; })
 					, maxweight = obj.news[topnews[0]].weight
 					;
 					
