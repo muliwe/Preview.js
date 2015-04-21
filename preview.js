@@ -119,7 +119,7 @@ app.get('/getthemes', function (req, res) {
   noids = newsgraph.Keyz(noids,base > 0); // hex if base is defined
   if (base > 0) for (k in noids) noids[k] = parseInt((base - noids[k]).toString(10),10); // forget hex encoding
   
-//  console.log([querystring,hash,newsgraph.cache.cached, newsgraph.cache.nocached, newsgraph.cache.hasOwnProperty(hash)]);
+//  console.log([querystring,hash,newsgraph.cache.cached, newsgraph.cache.nocached, newsgraph.cache.hasOwnProperty(hash),req.connection.remoteAddress]);
 
   if (dohtml)
   res.writeHead(200, {"Content-Type": "text/html; charset=utf-8"}); 
@@ -214,7 +214,7 @@ function Newsgraph() {
 //		console.log(video);
 
 		for (var is in result) {
-			if (is > 0 && result[is].response.filled) {
+			if (is > 0 && result[is].response && result[is].response.filled) {
 				var theme = obj.themes[result[is].id]
 				, subtitle = jade.renderFile(config.jade['subtitle'],{obj:obj,theme:theme,rubs:rubs,id:realid})
 				;
@@ -250,7 +250,7 @@ function Newsgraph() {
 	;
 
 	for (var is in result) {
-		if (is > 0 && result[is].response.filled && obj.themes.hasOwnProperty(result[is].id) && obj.themes[result[is].id].videos.length > 0) {
+		if (is > 0 && obj.themes.hasOwnProperty(result[is].id) && obj.themes[result[is].id].videos.length > 0) {
 				var topvideos = obj.themes[result[is].id].videos.sort(function(a,b){ return obj.videos[b].weight - obj.videos[a].weight; });
 				videos.push(topvideos[0]);
 			}
