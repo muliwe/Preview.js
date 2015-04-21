@@ -1,14 +1,15 @@
 if !!rubs[theme.id]
+ - var title = (rubs[theme.id].title == '/' ? 'Главные темы дня': rubs[theme.id].title)
  - var json = (rubs[theme.id].id ? JSON.stringify(obj.nodes[rubs[theme.id].id].path) : '[0]')
  if rubs[theme.id].id == id
   h1.b_head_block.b_head_block__adv
    if rubs[theme.id].id
-    | Рубрика: !{rubs[theme.id].title}
+    | Рубрика: !{title}
    else
-    | !{rubs[theme.id].title}
+    | !{title}
  else
   h2.b_head_block.b_head_block__adv 
-   a(href='#{rubs[theme.id].url}', title=(rubs[theme.id].url == '/' ? '' : rubs[theme.id].title)) !{rubs[theme.id].title}
+   a(href='#{rubs[theme.id].url}', title=(rubs[theme.id].url == '/' ? '' : title)) !{title}
  script(type="text/javascript").
    console.log("knocked #{rubs[theme.id].id}");
    shownode(!{json});

@@ -346,7 +346,7 @@ function Newsgraph() {
 		rubs[topthemes[is]] = {};
 		rubs[topthemes[is]].id	= (id>0?id:0);
 		rubs[topthemes[is]].url = (id > 0 ? obj.nodes[id].url : '/' );
-		rubs[topthemes[is]].title = (id > 0 ? obj.nodes[id].title : '&#1043;&#1083;&#1072;&#1074;&#1085;&#1099;&#1077; &#1090;&#1077;&#1084;&#1099; &#1076;&#1085;&#1103;' ); // root node
+		rubs[topthemes[is]].title = (id > 0 ? obj.nodes[id].title : '/' ); // root node - title is in 'subtitle' template
 
 		result.push(topthemes[is]);
 	}
