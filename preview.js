@@ -29,6 +29,7 @@ var express = require('express')
 		subtitle: 'jade/subtitle.jade',
 		video: 'jade/video.jade'
 		},
+	jadefn: {},
 	cache: {
 		video_small: 'http://www.ruscur.ru/includes_gen/video_small.shtml',
 		banner_hor_video: 'http://www.ruscur.ru/includes/banners/banner_hor_video.shtml'
@@ -53,9 +54,9 @@ var httpserver = http.createServer(app)
 , currdate2 = moment(now)//.subtract(10, 'minutes') // force to reload news cache ones
 , newsgraph = new Newsgraph()
 , iconv = new Iconv('CP1251','UTF-8//TRANSLIT//IGNORE')
-, iconvwin = new Iconv('UTF-8','CP1251//TRANSLIT//IGNORE')
 ;
 
+jadeready();
 newsgraph.Update();
 
 app.get('/', function (req, res) {
@@ -214,9 +215,9 @@ function Newsgraph() {
 //		console.log(video);
 
 		for (var is in result) {
-			if (is > 0 && result[is].response && result[is].response.filled) {
+			if (is > 0 && obj.themes.hasOwnProperty(result[is].id) && result[is].response.filled) {
 				var theme = obj.themes[result[is].id]
-				, subtitle = jade.renderFile(config.jade['subtitle'],{obj:obj,theme:theme,rubs:rubs,id:realid})
+				, subtitle = config.jadefn['subtitle']({obj:obj,theme:theme,rubs:rubs,id:realid})
 				;
 				if (rubs[result[is].id] && startnode != rubs[result[is].id].id) startnode = rubs[result[is].id].id;
 				noids.push(result[is].id);
@@ -259,7 +260,7 @@ function Newsgraph() {
 		
 	if (videos.length > 0) {
 		var topvideos = videos.sort(function(a,b){ return obj.videos[b].weight - obj.videos[a].weight; });
-		if (!obj.videos[topvideos[0]].body) obj.videos[topvideos[0]].body = jade.renderFile(config.jade['video'],{video:obj.videos[topvideos[0]],obj:obj});
+		if (!obj.videos[topvideos[0]].body) obj.videos[topvideos[0]].body = config.jadefn['video']({video:obj.videos[topvideos[0]],obj:obj});
 		return obj.videos[topvideos[0]].body;
 	} else return '';
 
@@ -401,7 +402,7 @@ function Newsgraph() {
 					theme.response.body = getanonsbig(obj.news[theme.response.news[0]].body);
 					theme.response.url = (theme.url != '' ? '/t/'+gettitleurl(theme.url)+'/'+geturl(result[is])+'.shtml' : '/themes/'+geturl(result[is])+'.shtml');
 					theme.response.escapedtitle = gettitleescape(theme.response.title);
-					theme.response.rendered = jade.renderFile(config.jade['main'],{theme:theme,obj:obj,is:is});
+					theme.response.rendered = config.jadefn['main']({theme:theme,obj:obj,is:is});
 					theme.response.filled = true;
 				}
 			
@@ -862,4 +863,13 @@ function host_allowed(host) {
     }
   }
   return false;
+}
+
+function jadeready() {
+
+      Object.keys(config.jade).forEach(function(k, index, array) {
+		  var template = fs.readFileSync(config.jade[k]).toString('binary'); // keep it in win-encoding
+		  config.jadefn[k] = jade.compile(template, {compileDebug:process.env.NODE_ENV == 'test',pretty:process.env.NODE_ENV == 'test'}); // enable compilation options to test envspace
+      });
+	
 }
