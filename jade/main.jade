@@ -1,5 +1,4 @@
 - var tclass = (theme.type == 1 ? 'nomatter_b': (theme.type == 3 ? 'breaking_b': ''))
-- var topkeywords = obj.Keyz(theme.keywords).sort(function(a,b){ return obj.nodes[b].weight>obj.nodes[a].weight?1:-1; })
 
 if theme.url
  .b_title(class = tclass)
@@ -7,14 +6,9 @@ if theme.url
    a(href='#{theme.response.url}', title='#{theme.url}') !{theme.url}
   if topkeywords.length > 0
    ul.b_title_list
-    - var firstkeyword = false
-    - var ii = 0
     each keyword, i in topkeywords
-     if ii < 4 && (!firstkeywords || obj.nodes[keyword].weight > obj.nodes[firstkeywords].weight / 3) && keyword != 4
-      - firstkeyword = (firstkeyword ? firstkeyword : keyword)
-      - ii++ 
-       li &#32;
-        a(href='#{obj.nodes[keyword].url}', title='#{obj.nodes[keyword].title}') !{obj.nodes[keyword].title}
+     li &#32;
+      a(href='#{obj.nodes[keyword].url}', title='#{obj.nodes[keyword].title}') !{obj.nodes[keyword].title}
 else
  .b_title(class = tclass)
   p.title_h
@@ -35,7 +29,7 @@ if theme.response.news.length == 4 || theme.response.news.length == 3 || theme.r
      p !{obj.news[theme.response.news[0]].anons}
      .b_drop_box(style='display:none;')
       | !{theme.response.body} 
-      //- | <!-- !{obj.news[theme.response.news[0]].weight} -->
+      | <!-- !{obj.news[theme.response.news[0]].weight} -->
       .row_line
        .b-button-repost.b-button-repost__dropdown
         noindex
@@ -61,22 +55,22 @@ if theme.response.news.length == 4 || theme.response.news.length == 3 || theme.r
        img(src=obj.news[theme.response.news[1]].image, alt='#{obj.news[theme.response.news[1]].title}', title='#{obj.news[theme.response.news[1]].title}')
       .b-box-indent
        a(href='#{theme.response.newsurl[1]}', class='b_box_head small') !{obj.news[theme.response.news[1]].title}
+       | <!-- !{obj.news[theme.response.news[1]].weight} -->
        if theme.response.news.length == 3
         p !{obj.news[theme.response.news[1]].anons}
-       //- | <!-- !{obj.news[theme.response.news[1]].weight} -->
      if theme.response.news.length == 4
       .b-box-news
        a(href='#{theme.response.newsurl[2]}', class='b_box_frame2')
         img(src=obj.news[theme.response.news[2]].image, alt='#{obj.news[theme.response.news[2]].title}', title='#{obj.news[theme.response.news[2]].title}')
        .b-box-indent
         a(href='#{theme.response.newsurl[2]}', class='b_box_head small') !{obj.news[theme.response.news[2]].title}
-        //- | <!-- !{obj.news[theme.response.news[2]].weight} -->
+        | <!-- !{obj.news[theme.response.news[2]].weight} -->
       .b-box-news.three
        a(href='#{theme.response.newsurl[3]}', class='b_box_frame2')
         img(src=obj.news[theme.response.news[3]].image, alt='#{obj.news[theme.response.news[3]].title}', title='#{obj.news[theme.response.news[3]].title}')
        .b-box-indent
         a(href='#{theme.response.newsurl[3]}', class='b_box_head small') !{obj.news[theme.response.news[3]].title}
-        //- | <!-- !{obj.news[theme.response.news[3]].weight} -->
+        | <!-- !{obj.news[theme.response.news[3]].weight} -->
      else
       .b-box-news.three
        a(href='#{theme.response.newsurl[2]}', class='b_box_frame2')
@@ -84,7 +78,7 @@ if theme.response.news.length == 4 || theme.response.news.length == 3 || theme.r
        .b-box-indent
         a(href='#{theme.response.newsurl[2]}', class='b_box_head small') !{obj.news[theme.response.news[2]].title}
         p !{obj.news[theme.response.news[2]].anons}
-        //- | <!-- !{obj.news[theme.response.news[2]].weight} -->
+        | <!-- !{obj.news[theme.response.news[2]].weight} -->
 else
  .b-mega-couple.b-mega-couple-top
   .b-content-col-l-width

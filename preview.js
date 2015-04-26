@@ -20,10 +20,15 @@ var express = require('express')
 	maxthemesfp: 20,
 	maxnews: 20,
 	maxnewsintheme: 4,
-	keywordcut: 0.5,
+	maxkeywords: 4,
 	themecut: 10,
 	videocut: 5,
 	newscut: 5,
+	keywordcut: 0.5,
+	keywordcut2: 3,
+	stopkeywords: {
+//		4: true // putin
+		},
 	jade: {
 		main: 'jade/main.jade',
 		subtitle: 'jade/subtitle.jade',
@@ -386,7 +391,7 @@ function Newsgraph() {
 					theme.response.news=[];
 					theme.response.newsurl=[];
 					
-					var topnews = obj.Keyz(theme.news).sort(function(a,b){ return obj.news[b].weight - obj.news[a].weight; })
+					var topnews = obj.Keyz(theme.news).sort(function(a,b){ return (obj.news[b].weight - obj.news[a].weight) || (obj.news[b].pd.isBefore(obj.news[a].pd)?-1:1) ; })
 					, maxweight = obj.news[topnews[0]].weight
 					;
 					
@@ -402,7 +407,23 @@ function Newsgraph() {
 					theme.response.body = getanonsbig(obj.news[theme.response.news[0]].body);
 					theme.response.url = (theme.url != '' ? '/t/'+gettitleurl(theme.url)+'/'+geturl(result[is])+'.shtml' : '/themes/'+geturl(result[is])+'.shtml');
 					theme.response.escapedtitle = gettitleescape(theme.response.title);
-					theme.response.rendered = config.jadefn['main']({theme:theme,obj:obj,is:is});
+					
+					var topkeywords = obj.Keyz(theme.keywords).sort(function(a,b){ return theme.keywords[b] - theme.keywords[a]; }) // obj.nodes[b].weight - obj.nodes[a].weight; // for global sort
+					, topkeywordsshort = []
+					, firstkeyword = false
+					, ii = 0
+					;
+					
+					for (var it in topkeywords) {
+						var keyword = topkeywords[it];
+						if (ii < config['maxkeywords'] && (!firstkeyword || obj.nodes[keyword].weight > obj.nodes[firstkeyword].weight / config['keywordcut2']) && !config.stopkeywords.hasOwnProperty(keyword)) {
+							firstkeyword = firstkeyword || keyword;
+							ii++;
+							topkeywordsshort.push(keyword);
+						}
+					}
+					
+					theme.response.rendered = config.jadefn['main']({theme:theme,obj:obj,topkeywords:topkeywordsshort,is:is});
 					theme.response.filled = true;
 				}
 			
@@ -581,7 +602,7 @@ function Newsgraph() {
 			});
 		obj.Keyz(obj.themes).forEach(function(k, index, array){
 			obj.themes[k].parents = []; // drop rubs cache
-			obj.themes[k].keywords = []; // drop keyword cache
+			obj.themes[k].keywords = {}; // drop keyword cache
 			ids.push(k);
 			});
 		obj.Keyz(obj.nodes).forEach(function(k, index, array){ // drop weight
@@ -607,7 +628,7 @@ function Newsgraph() {
 					if (obj.news.hasOwnProperty(id) && obj.nodes.hasOwnProperty(toid)) {
 
 						obj.news[id].keywords.push(toid); // to news themselves
-						obj.themes[obj.news[id].theme].keywords.push(toid); // to parent theme, no matters doubles
+						if (obj.themes[obj.news[id].theme].keywords.hasOwnProperty(toid)) obj.themes[obj.news[id].theme].keywords[toid] += obj.news[id].weight; else obj.themes[obj.news[id].theme].keywords[toid] = obj.news[id].weight; // to parent theme, additive weight counter
 						obj.nodes[toid].themes.push(obj.news[id].theme); // to keyword
 						if (obj.nodes.hasOwnProperty(obj.nodes[toid].parent) && obj.news[id].weight > config['keywordcut']) obj.nodes[obj.nodes[toid].parent].themes.push(obj.news[id].theme); // to parent node (except root node), but not for parent node path
 						for (var rub in obj.nodes[toid].path) obj.nodes[obj.nodes[toid].path[rub]].weight = parseInt((obj.nodes[obj.nodes[toid].path[rub]].weight + obj.news[id].weight / 2)*100 ,10)/100; // keep 2 digits after point
@@ -691,7 +712,7 @@ function Newstheme (id) {
     this.anons = '';
     this.image = false;
 	this.news = [];
-	this.keywords = [];
+	this.keywords = {};
 	this.pd = currdate;
     this.type = 1;
 	this.weight = 0;
