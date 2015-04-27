@@ -14,7 +14,7 @@ var express = require('express')
 	host: 'http://editor.ruscur.ru',
 	port: 3008,
 	ips: ['127.0.0.1','213.133.122.12','46.188.3.213'],
-    rejectconnectedhttp: 5000,
+    rejectconnectedhttp: 1000,
     timeout: 30000,
 	maxthemes: 10,
 	maxthemesfp: 20,
@@ -179,6 +179,7 @@ function Newsgraph() {
     this.themes = {};
     this.news = {};
     this.videos = {};
+    this.videossorted = [];
 	this.cache = {cached:0,nocached:0};
 	
     this.laststatus = 'Graph is created';
@@ -257,7 +258,7 @@ function Newsgraph() {
 
 	for (var is in result) {
 		if (is > 0 && obj.themes.hasOwnProperty(result[is].id) && obj.themes[result[is].id].videos.length > 0) {
-				var topvideos = obj.themes[result[is].id].videos.sort(function(a,b){ return obj.videos[b].weight - obj.videos[a].weight; });
+				var topvideos = obj.themes[result[is].id].videos; // obj.themes[result[is].id].videos.sort(function(a,b){ return obj.videos[b].weight - obj.videos[a].weight; }); // already sorted
 				videos.push(topvideos[0]);
 			}
 		}
@@ -391,7 +392,7 @@ function Newsgraph() {
 					theme.response.news=[];
 					theme.response.newsurl=[];
 					
-					var topnews = obj.Keyz(theme.news).sort(function(a,b){ return (obj.news[b].weight - obj.news[a].weight) || (obj.news[b].pd.isBefore(obj.news[a].pd)?-1:1) ; })
+					var topnews = theme.news //obj.Keyz(theme.news).sort(function(a,b){ return (obj.news[b].weight - obj.news[a].weight) || (obj.news[b].pd.isBefore(obj.news[a].pd)?-1:1) ; }) // already sorted
 					, maxweight = obj.news[topnews[0]].weight
 					;
 					
@@ -408,7 +409,7 @@ function Newsgraph() {
 					theme.response.url = (theme.url != '' ? '/t/'+gettitleurl(theme.url)+'/'+geturl(result[is])+'.shtml' : '/themes/'+geturl(result[is])+'.shtml');
 					theme.response.escapedtitle = gettitleescape(theme.response.title);
 					
-					var topkeywords = obj.Keyz(theme.keywords).sort(function(a,b){ return theme.keywords[b] - theme.keywords[a]; }) // obj.nodes[b].weight - obj.nodes[a].weight; // for global sort
+					var topkeywords = theme.keywords //obj.Keyz(theme.keywords).sort(function(a,b){ return theme.keywords[b] - theme.keywords[a]; }) // obj.nodes[b].weight - obj.nodes[a].weight; // for global sort // already sorted
 					, topkeywordsshort = []
 					, firstkeyword = false
 					, ii = 0
@@ -508,6 +509,7 @@ function Newsgraph() {
 		this.themes = {}; // drop themes cache
 		this.news = {}; // drop news cache
 		this.videos = {}; // drop videos cache
+		this.videossorted = []; // drop sorted videos arr
 		this.cache = {cached:0,nocached:0}; // drop html cache
 
 		Object.keys(config.cache).forEach(function(k, index, array){ 
@@ -565,13 +567,17 @@ function Newsgraph() {
 			obj.Keyz(obj.news).forEach(function(k, index, array){
 				var incr = (obj.themes[obj.news[k].theme].type == 3 ? 1.5 : 2) // breaking news are decrementing faster
 				obj.news[k].weight = parseInt((1 << parseInt((obj.themes[obj.news[k].theme].type-1),10))*obj.news[k].type * 12*incr/(12*incr+obj.news[k].age)*100 ,10)/100; // (N-1)**2 * L * 24/(24 + H) // keep 2 digits after point
-
-				obj.themes[obj.news[k].theme].news.push(k);
 				obj.themes[obj.news[k].theme].weight = parseInt((obj.themes[obj.news[k].theme].weight + obj.news[k].weight)*100 ,10)/100; // keep 2 digits after point;
 			});
 
+			obj.Keyz(obj.news).sort(function(a,b){ return (obj.news[b].weight - obj.news[a].weight) || (obj.news[b].pd.isBefore(obj.news[a].pd)?-1:1) ; }).forEach(function(k, index, array){ obj.themes[obj.news[k].theme].news.push(k);});
+			obj.Keyz(obj.videos).sort(function(a,b){ return (obj.videos[b].weight - obj.videos[a].weight) || (obj.videos[b].pd.isBefore(obj.videos[a].pd)?-1:1) ; }).forEach(function(k, index, array){ obj.videossorted.push(k);});
+
 			obj.Keyz(obj.themes).forEach(function(k, index, array){
-				for (var it in obj.themes[k].videos) obj.videos[obj.themes[k].videos[it]].weight = parseInt(obj.themes[k].weight*obj.videos[obj.themes[k].videos[it]].weight*100 ,10)/100; // keep 2 digits after point;
+				var theme = obj.themes[k];
+				for (var it in theme.videos) obj.videos[theme.videos[it]].weight = parseInt(theme.weight*obj.videos[theme.videos[it]].weight*100 ,10)/100; // keep 2 digits after point;
+				var videos = theme.videos.sort(function(a,b){ return obj.videos[b].weight - obj.videos[a].weight; });
+				theme.videos = videos;
 			});
 			
 			obj.laststatus = 'Graph news are updated';
@@ -602,7 +608,8 @@ function Newsgraph() {
 			});
 		obj.Keyz(obj.themes).forEach(function(k, index, array){
 			obj.themes[k].parents = []; // drop rubs cache
-			obj.themes[k].keywords = {}; // drop keyword cache
+			obj.themes[k].keyword = {}; // drop keyword cache
+			obj.themes[k].keywords = []; // drop keyword cache
 			ids.push(k);
 			});
 		obj.Keyz(obj.nodes).forEach(function(k, index, array){ // drop weight
@@ -628,7 +635,7 @@ function Newsgraph() {
 					if (obj.news.hasOwnProperty(id) && obj.nodes.hasOwnProperty(toid)) {
 
 						obj.news[id].keywords.push(toid); // to news themselves
-						if (obj.themes[obj.news[id].theme].keywords.hasOwnProperty(toid)) obj.themes[obj.news[id].theme].keywords[toid] += obj.news[id].weight; else obj.themes[obj.news[id].theme].keywords[toid] = obj.news[id].weight; // to parent theme, additive weight counter
+						if (obj.themes[obj.news[id].theme].keyword.hasOwnProperty(toid)) obj.themes[obj.news[id].theme].keyword[toid] += obj.news[id].weight; else obj.themes[obj.news[id].theme].keyword[toid] = obj.news[id].weight; // to parent theme, additive weight counter
 						obj.nodes[toid].themes.push(obj.news[id].theme); // to keyword
 						if (obj.nodes.hasOwnProperty(obj.nodes[toid].parent) && obj.news[id].weight > config['keywordcut']) obj.nodes[obj.nodes[toid].parent].themes.push(obj.news[id].theme); // to parent node (except root node), but not for parent node path
 						for (var rub in obj.nodes[toid].path) obj.nodes[obj.nodes[toid].path[rub]].weight = parseInt((obj.nodes[obj.nodes[toid].path[rub]].weight + obj.news[id].weight / 2)*100 ,10)/100; // keep 2 digits after point
@@ -644,6 +651,11 @@ function Newsgraph() {
 					}
 				}
 			}
+			
+			obj.Keyz(obj.themes).forEach(function(k, index, array){
+				var theme = obj.themes[k];
+				theme.keywords = obj.Keyz(theme.keyword).sort(function(a,b){ return theme.keyword[b] - theme.keyword[a]; }) // obj.nodes[b].weight - obj.nodes[a].weight; // for global sort
+			});
 			
 			obj.Keyz(obj.nodes).forEach(function(k, index, array){
 				for (var rub in obj.nodes[k].path) {
@@ -712,7 +724,8 @@ function Newstheme (id) {
     this.anons = '';
     this.image = false;
 	this.news = [];
-	this.keywords = {};
+	this.keyword = {};
+	this.keywords = [];
 	this.pd = currdate;
     this.type = 1;
 	this.weight = 0;
