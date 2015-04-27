@@ -256,13 +256,7 @@ function Newsgraph() {
 	, videos = []
 	;
 
-	for (var is in result) {
-		if (is > 0 && obj.themes.hasOwnProperty(result[is].id) && obj.themes[result[is].id].videos.length > 0) {
-				var topvideos = obj.themes[result[is].id].videos; // obj.themes[result[is].id].videos.sort(function(a,b){ return obj.videos[b].weight - obj.videos[a].weight; }); // already sorted
-				videos.push(topvideos[0]);
-			}
-		}
-	
+	for (var is in result) if (is > 0 && obj.themes.hasOwnProperty(result[is].id) && obj.themes[result[is].id].videos.length > 0) videos.push(obj.themes[result[is].id].videos[0]);
 		
 	if (videos.length > 0) {
 		var topvideos = videos.sort(function(a,b){ return obj.videos[b].weight - obj.videos[a].weight; });
@@ -392,16 +386,14 @@ function Newsgraph() {
 					theme.response.news=[];
 					theme.response.newsurl=[];
 					
-					var topnews = theme.news //obj.Keyz(theme.news).sort(function(a,b){ return (obj.news[b].weight - obj.news[a].weight) || (obj.news[b].pd.isBefore(obj.news[a].pd)?-1:1) ; }) // already sorted
-					, maxweight = obj.news[topnews[0]].weight
-					;
+					var maxweight = obj.news[theme.news[0]].weight;
 					
-					for (var it in topnews) {
-						if (obj.news[topnews[it]].weight < maxweight / config['newscut']) break;
+					for (var it in theme.news) {
+						if (obj.news[theme.news[it]].weight < maxweight / config['newscut']) break;
 						if (it == config['maxnewsintheme']) break;
 			
-						theme.response.news.push(topnews[it]);
-						theme.response.newsurl.push(obj.news[topnews[it]].url);
+						theme.response.news.push(theme.news[it]);
+						theme.response.newsurl.push(obj.news[theme.news[it]].url);
 					}
 
 					theme.response.title = obj.news[theme.response.news[0]].title;
@@ -409,14 +401,13 @@ function Newsgraph() {
 					theme.response.url = (theme.url != '' ? '/t/'+gettitleurl(theme.url)+'/'+geturl(result[is])+'.shtml' : '/themes/'+geturl(result[is])+'.shtml');
 					theme.response.escapedtitle = gettitleescape(theme.response.title);
 					
-					var topkeywords = theme.keywords //obj.Keyz(theme.keywords).sort(function(a,b){ return theme.keywords[b] - theme.keywords[a]; }) // obj.nodes[b].weight - obj.nodes[a].weight; // for global sort // already sorted
-					, topkeywordsshort = []
+					var topkeywordsshort = []
 					, firstkeyword = false
 					, ii = 0
 					;
 					
-					for (var it in topkeywords) {
-						var keyword = topkeywords[it];
+					for (var it in theme.keywords) {
+						var keyword = theme.keywords[it];
 						if (ii < config['maxkeywords'] && (!firstkeyword || obj.nodes[keyword].weight > obj.nodes[firstkeyword].weight / config['keywordcut2']) && !config.stopkeywords.hasOwnProperty(keyword)) {
 							firstkeyword = firstkeyword || keyword;
 							ii++;
@@ -576,8 +567,7 @@ function Newsgraph() {
 			obj.Keyz(obj.themes).forEach(function(k, index, array){
 				var theme = obj.themes[k];
 				for (var it in theme.videos) obj.videos[theme.videos[it]].weight = parseInt(theme.weight*obj.videos[theme.videos[it]].weight*100 ,10)/100; // keep 2 digits after point;
-				var videos = theme.videos.sort(function(a,b){ return obj.videos[b].weight - obj.videos[a].weight; });
-				theme.videos = videos;
+				obj.themes[k].videos = theme.videos.sort(function(a,b){ return obj.videos[b].weight - obj.videos[a].weight; });
 			});
 			
 			obj.laststatus = 'Graph news are updated';
