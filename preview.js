@@ -46,11 +46,13 @@ var express = require('express')
   password : '^8Da1ru6',
   database : 'ruscur'
   }
+, test = false
 ;
 
 if (process.env.NODE_ENV == 'test')
 {
 	config.port = 3009;
+	test = true;
 };
 
 var httpserver = http.createServer(app)
@@ -69,7 +71,6 @@ app.get('/', function (req, res) {
   var echo = 'Not working'
   , flush = (req.query.flush?true:false)
   , newsflush = (req.query.newsflush?true:false)
-  , id = (req.query.id?parseInt(req.query.id,10):0)
   , now2 = new Date()
   , currdate3 = moment(now2)
   , currdate4 = moment(now2).subtract(24, 'hours')
@@ -134,6 +135,7 @@ app.get('/getthemes', function (req, res) {
 
   if (newsgraph.cache.hasOwnProperty(hash)) {
 	  // has cache
+		clearTimeout(disctime);
 		res.end(reconvert(newsgraph.cache[hash]));
 		newsgraph.cache.cached++;
   } else {
@@ -249,7 +251,7 @@ function Newsgraph() {
 
     this.GetVideo = function (result) {
 
-//	if (process.env.NODE_ENV != 'test')	return '';
+//	if (test)	return '';
 	
 	var echo = ''
 	, obj = this
@@ -893,7 +895,7 @@ function jadeready() {
 
       Object.keys(config.jade).forEach(function(k, index, array) {
 		  var template = fs.readFileSync(config.jade[k]).toString('binary'); // keep it in win-encoding
-		  config.jadefn[k] = jade.compile(template, {compileDebug:process.env.NODE_ENV == 'test',pretty:process.env.NODE_ENV == 'test'}); // enable compilation options to test envspace
+		  config.jadefn[k] = jade.compile(template, {compileDebug:test,pretty:test}); // enable compilation options to test envspace
       });
 	
 }
